@@ -1,0 +1,70 @@
+# ============================================================
+# Prometheus Configuration
+# Thu thập metrics từ: Web App, Node Exporter, cAdvisor,
+# MySQL Exporter, Nginx
+# ============================================================
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  scrape_timeout:      10s
+  external_labels:
+    monitor: 'student-management-system'
+    environment: 'docker-compose'
+
+# ---- Alerting Rules (placeholder) ----
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+# ============================================================
+# SCRAPE CONFIGS
+# ============================================================
+scrape_configs:
+
+  # --- Prometheus self-monitoring ---
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # --- Web Application (Node.js) ---
+  - job_name: 'webapp'
+    static_configs:
+      - targets: ['webapp:3000']
+        labels:
+          service: 'webapp'
+          app: 'student-management'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # --- Node Exporter (Host metrics) ---
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          instance: 'docker-host'
+    scrape_interval: 15s
+
+  # --- cAdvisor (Container metrics) ---
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+
+  # --- MySQL Exporter ---
+  - job_name: 'mysql-exporter'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+        labels:
+          service: 'mysql'
+          database: 'student_db'
+    scrape_interval: 30s
