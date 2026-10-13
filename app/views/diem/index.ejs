@@ -1,0 +1,106 @@
+<%- include('../_head', {title: 'Quản lý Điểm số'}) %>
+<div class="container-fluid px-4">
+  <div class="page-hero fade-in" style="">
+    <div class="hero-icon" style="background:linear-gradient(135deg,#10b981,#059669);">
+      <i class="bi bi-bar-chart-fill"></i>
+    </div>
+    <h1>Quản lý Điểm số</h1>
+    <p>Danh sách bảng điểm toàn hệ thống</p>
+  </div>
+
+  <div class="d-flex justify-content-end mb-4">
+    <a href="/diem/create" class="btn btn-primary-custom" id="btnAddGrade">
+      <i class="bi bi-pencil-fill me-2"></i>Nhập Điểm mới
+    </a>
+  </div>
+
+  <div class="table-wrapper fade-in delay-1">
+    <table class="table-dark-custom" id="tableGrades">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Sinh viên</th>
+          <th>Lớp</th>
+          <th>Môn học</th>
+          <th class="text-center">GK (40%)</th>
+          <th class="text-center">CK (60%)</th>
+          <th class="text-center">Thi lại</th>
+          <th class="text-center">Tổng kết</th>
+          <th>Học kỳ</th>
+          <th class="text-center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if(grades.length === 0) { %>
+          <tr>
+            <td colspan="10" class="text-center py-5" style="color:#475569;">
+              <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+              Chưa có dữ liệu điểm
+            </td>
+          </tr>
+        <% } else { %>
+          <% grades.forEach((g, i) => {
+            const tk = parseFloat(g.diem_tong_ket);
+            let gradeClass = 'badge-d', gradeLetter = 'F';
+            if (tk >= 8.5)      { gradeClass = 'badge-a'; gradeLetter = 'A'; }
+            else if (tk >= 7.0) { gradeClass = 'badge-b'; gradeLetter = 'B'; }
+            else if (tk >= 5.0) { gradeClass = 'badge-c'; gradeLetter = 'C'; }
+          %>
+          <tr>
+            <td style="color:#475569;font-size:0.78rem;"><%= i + 1 %></td>
+            <td>
+              <div style="font-weight:600;color:#f1f5f9;"><%= g.ho_ten %></div>
+              <div style="font-size:0.75rem;color:#818cf8;font-family:monospace;"><%= g.ma_sv %></div>
+            </td>
+            <td>
+              <% if(g.ten_lop) { %>
+                <span style="font-size:0.75rem;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#22d3ee;border-radius:6px;padding:0.2em 0.5em;">
+                  <%= g.ma_lop %>
+                </span>
+              <% } else { %><span style="color:#475569;">—</span><% } %>
+            </td>
+            <td style="color:#e2e8f0;font-weight:500;"><%= g.mon_hoc %></td>
+            <td class="text-center">
+              <span class="grade-value"><%= g.diem_giua_ky !== null ? parseFloat(g.diem_giua_ky).toFixed(1) : '—' %></span>
+            </td>
+            <td class="text-center">
+              <span class="grade-value"><%= g.diem_cuoi_ky !== null ? parseFloat(g.diem_cuoi_ky).toFixed(1) : '—' %></span>
+            </td>
+            <td class="text-center">
+              <% if(g.diem_thi_lai !== null) { %>
+                <span style="color:#fbbf24;font-size:0.85rem;font-weight:600;"><%= parseFloat(g.diem_thi_lai).toFixed(1) %></span>
+              <% } else { %><span style="color:#334155;">—</span><% } %>
+            </td>
+            <td class="text-center">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <span class="grade-value"><%= tk.toFixed(1) %></span>
+                <span class="badge-grade <%= gradeClass %>" style="font-size:0.7rem;"><%= gradeLetter %></span>
+              </div>
+            </td>
+            <td style="color:#94a3b8;font-size:0.83rem;">HK<%= g.hoc_ky %> - <%= g.nam_hoc %></td>
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <a href="/diem/<%= g.id %>/edit" class="btn btn-edit-custom" id="editGrade_<%= g.id %>">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+                <form method="POST" action="/diem/<%= g.id %>?_method=DELETE" class="d-inline">
+                  <button type="submit" class="btn btn-danger-custom btn-delete-confirm"
+                    data-name="<%= g.mon_hoc %> - <%= g.ho_ten %>" id="deleteGrade_<%= g.id %>">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+    <% if(grades.length > 0) { %>
+    <div style="padding:0.75rem 1rem;border-top:1px solid #334155;color:#475569;font-size:0.78rem;">
+      Tổng: <strong style="color:#818cf8;"><%= grades.length %></strong> bản ghi điểm
+    </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../_foot') %>

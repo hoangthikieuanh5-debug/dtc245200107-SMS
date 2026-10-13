@@ -1,0 +1,113 @@
+<%- include('../_head', {title: title}) %>
+<div class="container-fluid px-4">
+  <div class="page-hero fade-in">
+    <div class="hero-icon" style="background:linear-gradient(135deg,#10b981,#059669);">
+      <i class="bi bi-<%= grade ? 'pencil-square' : 'pencil-fill' %>"></i>
+    </div>
+    <h1><%= title %></h1>
+    <p><%= grade ? `Chỉnh sửa điểm môn: ${grade.mon_hoc}` : 'Nhập điểm mới cho sinh viên' %></p>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card-dark p-0 fade-in delay-1">
+        <div class="card-header">
+          <h6 class="mb-0 text-light"><i class="bi bi-bar-chart me-2 text-success"></i>Thông tin điểm số</h6>
+        </div>
+        <div class="p-4">
+          <form method="POST" action="<%= action %>" class="form-dark" id="gradeForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="ma_sv">Sinh viên *</label>
+                <select class="form-select" id="ma_sv" name="ma_sv" required>
+                  <option value="">-- Chọn sinh viên --</option>
+                  <% students.forEach(sv => { %>
+                    <option value="<%= sv.ma_sv %>"
+                      <%= (grade && grade.ma_sv === sv.ma_sv) ? 'selected' : '' %>>
+                      <%= sv.ma_sv %> - <%= sv.ho_ten %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="mon_hoc">Môn học *</label>
+                <input type="text" class="form-control" id="mon_hoc" name="mon_hoc"
+                  value="<%= grade ? grade.mon_hoc : '' %>"
+                  required placeholder="VD: Lập trình Web">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="diem_giua_ky">Điểm Giữa kỳ (40%)</label>
+                <input type="number" class="form-control" id="diem_giua_ky" name="diem_giua_ky"
+                  step="0.1" min="0" max="10"
+                  value="<%= grade ? grade.diem_giua_ky : '' %>"
+                  placeholder="0.0 - 10.0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="diem_cuoi_ky">Điểm Cuối kỳ (60%)</label>
+                <input type="number" class="form-control" id="diem_cuoi_ky" name="diem_cuoi_ky"
+                  step="0.1" min="0" max="10"
+                  value="<%= grade ? grade.diem_cuoi_ky : '' %>"
+                  placeholder="0.0 - 10.0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label" for="diem_thi_lai">Điểm Thi lại</label>
+                <input type="number" class="form-control" id="diem_thi_lai" name="diem_thi_lai"
+                  step="0.1" min="0" max="10"
+                  value="<%= grade && grade.diem_thi_lai !== null ? grade.diem_thi_lai : '' %>"
+                  placeholder="Để trống nếu không có">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Điểm Tổng kết</label>
+                <div class="form-control" id="preview_tk" 
+                  style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#34d399;font-weight:700;text-align:center;">
+                  —
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="hoc_ky">Học kỳ *</label>
+                <select class="form-select" id="hoc_ky" name="hoc_ky" required>
+                  <% [1,2,3].forEach(hk => { %>
+                    <option value="<%= hk %>" <%= (grade && grade.hoc_ky == hk) ? 'selected' : '' %>>Học kỳ <%= hk %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="nam_hoc">Năm học *</label>
+                <input type="text" class="form-control" id="nam_hoc" name="nam_hoc"
+                  value="<%= grade ? grade.nam_hoc : '2024-2025' %>"
+                  required placeholder="VD: 2024-2025">
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-primary-custom" id="btnSubmitGrade">
+                <i class="bi bi-<%= grade ? 'check-circle-fill' : 'pencil-fill' %> me-2"></i>
+                <%= grade ? 'Cập nhật điểm' : 'Lưu điểm' %>
+              </button>
+              <a href="/diem" class="btn" style="background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.3);color:#94a3b8;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;">
+                <i class="bi bi-arrow-left me-2"></i>Quay lại
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Auto-calculate tong ket
+function calcTK() {
+  const gk = parseFloat(document.getElementById('diem_giua_ky').value);
+  const ck = parseFloat(document.getElementById('diem_cuoi_ky').value);
+  const el = document.getElementById('preview_tk');
+  if (!isNaN(gk) && !isNaN(ck)) {
+    el.textContent = (gk * 0.4 + ck * 0.6).toFixed(2);
+  } else {
+    el.textContent = '—';
+  }
+}
+document.getElementById('diem_giua_ky').addEventListener('input', calcTK);
+document.getElementById('diem_cuoi_ky').addEventListener('input', calcTK);
+<% if(grade) { %>calcTK();<% } %>
+</script>
+<%- include('../_foot') %>

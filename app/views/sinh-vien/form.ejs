@@ -1,0 +1,95 @@
+<%- include('../_head', {title: title}) %>
+<div class="container-fluid px-4">
+  <div class="page-hero fade-in">
+    <div class="hero-icon">
+      <i class="bi bi-<%= student ? 'pencil-square' : 'person-plus-fill' %>"></i>
+    </div>
+    <h1><%= title %></h1>
+    <p><%= student ? `Chỉnh sửa thông tin sinh viên: ${student.ma_sv}` : 'Nhập thông tin sinh viên mới vào hệ thống' %></p>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card-dark p-0 fade-in delay-1">
+        <div class="card-header">
+          <h6 class="mb-0 text-light">
+            <i class="bi bi-form me-2 text-primary"></i>
+            Thông tin sinh viên
+          </h6>
+        </div>
+        <div class="p-4">
+          <form method="POST" action="<%= action %>" class="form-dark" id="studentForm">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="ma_sv">Mã Sinh viên *</label>
+                <input type="text" class="form-control" id="ma_sv" name="ma_sv"
+                  value="<%= student ? student.ma_sv : '' %>"
+                  <%= student ? 'readonly style="opacity:0.6"' : 'required' %>
+                  placeholder="VD: SV001">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label" for="ho_ten">Họ và Tên *</label>
+                <input type="text" class="form-control" id="ho_ten" name="ho_ten"
+                  value="<%= student ? student.ho_ten : '' %>"
+                  required placeholder="VD: Nguyễn Văn A">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="ngay_sinh">Ngày sinh</label>
+                <input type="date" class="form-control" id="ngay_sinh" name="ngay_sinh"
+                  value="<%= student && student.ngay_sinh ? new Date(student.ngay_sinh).toISOString().split('T')[0] : '' %>">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="gioi_tinh">Giới tính</label>
+                <select class="form-select" id="gioi_tinh" name="gioi_tinh">
+                  <option value="Nam" <%= (!student || student.gioi_tinh === 'Nam') ? 'selected' : '' %>>Nam</option>
+                  <option value="Nữ" <%= (student && student.gioi_tinh === 'Nữ') ? 'selected' : '' %>>Nữ</option>
+                  <option value="Khác" <%= (student && student.gioi_tinh === 'Khác') ? 'selected' : '' %>>Khác</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="ma_lop">Lớp học</label>
+                <select class="form-select" id="ma_lop" name="ma_lop">
+                  <option value="">-- Chưa xếp lớp --</option>
+                  <% lops.forEach(l => { %>
+                    <option value="<%= l.ma_lop %>" 
+                      <%= (student && student.ma_lop === l.ma_lop) ? 'selected' : '' %>>
+                      <%= l.ma_lop %> - <%= l.ten_lop %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="email">Email</label>
+                <input type="email" class="form-control" id="email" name="email"
+                  value="<%= student ? student.email || '' : '' %>"
+                  placeholder="example@student.edu.vn">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="sdt">Số điện thoại</label>
+                <input type="text" class="form-control" id="sdt" name="sdt"
+                  value="<%= student ? student.sdt || '' : '' %>"
+                  placeholder="VD: 0912345678">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="dia_chi">Địa chỉ</label>
+                <textarea class="form-control" id="dia_chi" name="dia_chi" rows="2"
+                  placeholder="Địa chỉ thường trú..."><%= student ? student.dia_chi || '' : '' %></textarea>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-primary-custom" id="btnSubmitStudent">
+                <i class="bi bi-<%= student ? 'check-circle-fill' : 'person-plus-fill' %> me-2"></i>
+                <%= student ? 'Cập nhật' : 'Thêm Sinh viên' %>
+              </button>
+              <a href="/sinh-vien" class="btn" style="background:rgba(100,116,139,0.15);border:1px solid rgba(100,116,139,0.3);color:#94a3b8;border-radius:8px;padding:0.6rem 1.5rem;font-weight:600;">
+                <i class="bi bi-arrow-left me-2"></i>Quay lại
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../_foot') %>

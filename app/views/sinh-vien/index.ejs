@@ -1,0 +1,105 @@
+<%- include('../_head', {title: 'Quản lý Sinh viên'}) %>
+<div class="container-fluid px-4">
+  <!-- Page Hero -->
+  <div class="page-hero fade-in">
+    <div class="hero-icon"><i class="bi bi-people-fill"></i></div>
+    <h1>Quản lý Sinh viên</h1>
+    <p>Danh sách tất cả sinh viên trong hệ thống</p>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between mb-4">
+    <form method="GET" action="/sinh-vien" class="d-flex gap-2" style="flex:1;max-width:400px;">
+      <div class="input-group">
+        <span class="input-group-text" style="background:rgba(15,23,42,0.8);border-color:#334155;color:#64748b;">
+          <i class="bi bi-search"></i>
+        </span>
+        <input type="text" name="search" class="form-control search-bar" 
+          placeholder="Tìm kiếm sinh viên..." value="<%= search %>" id="searchInput">
+      </div>
+      <button type="submit" class="btn btn-sm btn-primary-custom px-3">Tìm</button>
+      <% if(search) { %>
+        <a href="/sinh-vien" class="btn btn-sm" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;">✕</a>
+      <% } %>
+    </form>
+    <a href="/sinh-vien/create" class="btn btn-primary-custom" id="btnAddStudent">
+      <i class="bi bi-person-plus-fill me-2"></i>Thêm Sinh viên
+    </a>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper fade-in delay-1">
+    <table class="table-dark-custom" id="tableStudents">
+      <thead>
+        <tr>
+          <th>Mã SV</th>
+          <th>Họ và Tên</th>
+          <th>Ngày sinh</th>
+          <th>Giới tính</th>
+          <th>Email</th>
+          <th>SĐT</th>
+          <th>Lớp</th>
+          <th class="text-center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if(students.length === 0) { %>
+          <tr>
+            <td colspan="8" class="text-center py-5" style="color:#475569;">
+              <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+              <%= search ? `Không tìm thấy sinh viên với từ khóa "${search}"` : 'Chưa có sinh viên nào' %>
+            </td>
+          </tr>
+        <% } else { %>
+          <% students.forEach(sv => { %>
+          <tr>
+            <td><span style="font-family:monospace;font-size:0.8rem;color:#818cf8;font-weight:600;"><%= sv.ma_sv %></span></td>
+            <td><strong style="color:#f1f5f9;"><%= sv.ho_ten %></strong></td>
+            <td style="color:#94a3b8;font-size:0.85rem;">
+              <%= sv.ngay_sinh ? new Date(sv.ngay_sinh).toLocaleDateString('vi-VN') : '—' %>
+            </td>
+            <td>
+              <span class="badge-grade <%= sv.gioi_tinh === 'Nam' ? 'badge-gender-m' : 'badge-gender-f' %>" 
+                style="font-size:0.75rem;padding:0.25em 0.6em;border-radius:4px;">
+                <%= sv.gioi_tinh === 'Nam' ? '♂ Nam' : sv.gioi_tinh === 'Nữ' ? '♀ Nữ' : '⚥ Khác' %>
+              </span>
+            </td>
+            <td style="color:#94a3b8;font-size:0.83rem;"><%= sv.email || '—' %></td>
+            <td style="color:#94a3b8;font-size:0.83rem;"><%= sv.sdt || '—' %></td>
+            <td>
+              <% if(sv.ten_lop) { %>
+                <span style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);
+                  color:#22d3ee;border-radius:6px;padding:0.2em 0.6em;font-size:0.78rem;font-weight:600;">
+                  <%= sv.ma_lop %>
+                </span>
+              <% } else { %>
+                <span style="color:#475569;">—</span>
+              <% } %>
+            </td>
+            <td class="text-center">
+              <div class="d-flex gap-1 justify-content-center">
+                <a href="/sinh-vien/<%= sv.ma_sv %>/edit" class="btn btn-edit-custom" id="editStudent_<%= sv.ma_sv %>">
+                  <i class="bi bi-pencil-fill"></i>
+                </a>
+                <form method="POST" action="/sinh-vien/<%= sv.ma_sv %>?_method=DELETE" class="d-inline">
+                  <button type="submit" class="btn btn-danger-custom btn-delete-confirm" 
+                    data-name="<%= sv.ho_ten %>" id="deleteStudent_<%= sv.ma_sv %>">
+                    <i class="bi bi-trash3-fill"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+    <% if(students.length > 0) { %>
+    <div style="padding:0.75rem 1rem;border-top:1px solid #334155;color:#475569;font-size:0.78rem;">
+      Tổng cộng: <strong style="color:#818cf8;"><%= students.length %></strong> sinh viên
+      <% if(search) { %> | Kết quả tìm kiếm cho: "<%= search %>"<% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+<%- include('../_foot') %>

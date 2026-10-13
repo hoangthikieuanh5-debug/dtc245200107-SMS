@@ -1,0 +1,67 @@
+<%- include('../_head', {title: 'Quản lý Lớp học'}) %>
+<div class="container-fluid px-4">
+  <div class="page-hero fade-in">
+    <div class="hero-icon" style="background:linear-gradient(135deg,#06b6d4,#0e7490);">
+      <i class="bi bi-building-fill"></i>
+    </div>
+    <h1>Quản lý Lớp học</h1>
+    <p>Danh sách tất cả lớp học và thông tin giảng viên</p>
+  </div>
+
+  <div class="d-flex justify-content-end mb-4">
+    <a href="/lop/create" class="btn btn-primary-custom" id="btnAddClass">
+      <i class="bi bi-plus-circle-fill me-2"></i>Thêm Lớp học
+    </a>
+  </div>
+
+  <div class="row g-3">
+    <% if(classes.length === 0) { %>
+      <div class="col-12 text-center py-5" style="color:#475569;">
+        <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+        Chưa có lớp học nào
+      </div>
+    <% } else { %>
+      <% classes.forEach((cls, idx) => {
+        const colors = ['#4f46e5','#06b6d4','#10b981','#f59e0b','#ec4899'];
+        const c = colors[idx % colors.length];
+      %>
+      <div class="col-md-6 col-xl-4 fade-in" style="animation-delay:<%= idx * 0.05 %>s">
+        <div class="stat-card" style="--grad-color:linear-gradient(90deg,<%= c %>,<%= c %>88);padding:1.5rem;">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <span style="font-family:monospace;font-size:0.8rem;font-weight:700;color:<%= c %>;">
+                <%= cls.ma_lop %>
+              </span>
+              <h5 style="color:#f1f5f9;font-weight:700;margin:0.25rem 0 0;font-size:1rem;">
+                <%= cls.ten_lop %>
+              </h5>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:0.5rem 0.8rem;text-align:center;">
+              <div style="font-size:1.3rem;font-weight:700;color:<%= c %>;"><%= cls.so_sv %></div>
+              <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;">SV</div>
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-1 mb-3" style="font-size:0.82rem;">
+            <div style="color:#94a3b8;"><i class="bi bi-mortarboard me-2" style="color:<%= c %>;"></i><%= cls.khoa %></div>
+            <div style="color:#94a3b8;"><i class="bi bi-calendar3 me-2" style="color:<%= c %>;"></i><%= cls.nien_khoa %></div>
+            <div style="color:#94a3b8;"><i class="bi bi-person-badge me-2" style="color:<%= c %>;"></i><%= cls.giao_vien_chu_nhiem || 'Chưa phân công' %></div>
+            <div style="color:#94a3b8;"><i class="bi bi-bookmark me-2" style="color:<%= c %>;"></i><%= cls.he_dao_tao %></div>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="/lop/<%= cls.ma_lop %>/edit" class="btn btn-edit-custom btn-sm" id="editClass_<%= cls.ma_lop %>">
+              <i class="bi bi-pencil-fill me-1"></i>Sửa
+            </a>
+            <form method="POST" action="/lop/<%= cls.ma_lop %>?_method=DELETE" class="d-inline">
+              <button type="submit" class="btn btn-danger-custom btn-sm btn-delete-confirm"
+                data-name="<%= cls.ten_lop %>" id="deleteClass_<%= cls.ma_lop %>">
+                <i class="bi bi-trash3-fill me-1"></i>Xóa
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    <% } %>
+  </div>
+</div>
+<%- include('../_foot') %>

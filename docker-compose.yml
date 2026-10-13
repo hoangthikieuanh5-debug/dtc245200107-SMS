@@ -1,0 +1,349 @@
+# ============================================================
+# Docker Compose - Student Management System
+# Đề 2: Hệ thống Quản lý Sinh viên
+# Môn: Triển khai và Quản trị Hệ thống Phần mềm
+# ============================================================
+# Networks:
+#   frontend-net : Nginx <-> webapp, phpmyadmin
+#   backend-net  : webapp <-> mysql, phpmyadmin <-> mysql
+#   monitoring-net: prometheus, grafana, loki, promtail, cadvisor, node-exporter
+# ============================================================
+
+services:
+
+  # ============================================================
+  # DATABASE: MySQL 8.0
+  # ============================================================
+  mysql:
+    image: mysql:8.0
+    container_name: sms-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./app/database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - backend-net
+    # MySQL KHÔNG expose port ra host - chỉ qua backend-net
+    # ports: (intentionally disabled for security)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=200
+      --innodb_buffer_pool_size=256M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================================
+  # DB ADMIN: phpMyAdmin
+  # ============================================================
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    container_name: sms-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+      UPLOAD_LIMIT: 64M
+      MEMORY_LIMIT: 256M
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:80"    # phpMyAdmin trực tiếp qua port 8080 (cũng qua Nginx proxy)
+    networks:
+      - frontend-net
+      - backend-net
+
+  # ============================================================
+  # WEB APPLICATION: Node.js
+  # ============================================================
+  webapp:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+      target: production
+    image: sms-webapp:latest
+    container_name: sms-webapp
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      APP_PORT: ${APP_PORT:-3000}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}
+    volumes:
+      - app_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - frontend-net
+      - backend-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # webapp không expose port ra ngoài - chỉ qua Nginx
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================================
+  # REVERSE PROXY: Nginx (HTTPS + Hardening)
+  # ============================================================
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: sms-nginx:latest
+    container_name: sms-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      webapp:
+        condition: service_healthy
+    networks:
+      - frontend-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ============================================================
+  # MONITORING: Prometheus
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: sms-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring-net
+      - frontend-net   # Cần truy cập webapp để scrape /metrics
+    user: "65534:65534"  # nobody user
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ============================================================
+  # MONITORING: Grafana
+  # ============================================================
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: sms-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "http://localhost:3001"
+      GF_INSTALL_PLUGINS: "grafana-piechart-panel"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitoring-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================================
+  # MONITORING: Node Exporter (Host metrics)
+  # ============================================================
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: sms-node-exporter
+    restart: unless-stopped
+    command:
+      - '--collector.disable-defaults'
+      - '--collector.time'
+      - '--collector.uname'
+    networks:
+      - monitoring-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ============================================================
+  # MONITORING: cAdvisor (Container metrics)
+  # ============================================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: sms-cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ============================================================
+  # MONITORING: MySQL Exporter
+  # ============================================================
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: sms-mysql-exporter
+    restart: unless-stopped
+    command:
+      - '--mysqld.username=exporter:Exp0rt3r@2024!'
+      - '--mysqld.address=mysql:3306'
+      - '--collect.global_status'
+      - '--collect.info_schema.innodb_metrics'
+      - '--collect.global_variables'
+      - '--collect.slave_status'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - backend-net
+      - monitoring-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ============================================================
+  # LOGGING: Loki
+  # ============================================================
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: sms-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./logging/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring-net
+    user: "10001:10001"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ============================================================
+  # LOGGING: Promtail
+  # ============================================================
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: sms-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./logging/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - app_logs:/var/log/app:ro
+      - nginx_logs:/var/log/nginx:ro
+    depends_on:
+      - loki
+    networks:
+      - monitoring-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  mysql_data:
+    driver: local
+    name: sms_mysql_data
+  prometheus_data:
+    driver: local
+    name: sms_prometheus_data
+  grafana_data:
+    driver: local
+    name: sms_grafana_data
+  loki_data:
+    driver: local
+    name: sms_loki_data
+  app_logs:
+    driver: local
+    name: sms_app_logs
+  nginx_logs:
+    driver: local
+    name: sms_nginx_logs
+
+# ============================================================
+# NETWORKS (Network Isolation)
+# ============================================================
+networks:
+  # Nginx <-> webapp, phpmyadmin (truy cập từ ngoài)
+  frontend-net:
+    driver: bridge
+    name: sms_frontend_net
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+  # webapp <-> mysql, phpmyadmin <-> mysql (nội bộ)
+  backend-net:
+    driver: bridge
+    name: sms_backend_net
+    internal: true   # KHÔNG có kết nối ra internet
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24
+
+  # prometheus, grafana, loki, promtail, exporters
+  monitoring-net:
+    driver: bridge
+    name: sms_monitoring_net
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24
