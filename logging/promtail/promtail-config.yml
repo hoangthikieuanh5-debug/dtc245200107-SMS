@@ -1,0 +1,110 @@
+# ============================================================
+# Promtail Configuration
+# Thu thập log từ Docker containers
+# ============================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+
+# ============================================================
+# SCRAPE CONFIGS - Thu thập từ Docker containers
+# ============================================================
+scrape_configs:
+
+  # --- Web App (Node.js) Logs ---
+  - job_name: webapp
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: webapp
+          service: student-management
+          environment: production
+          __path__: /var/log/app/*.log
+
+    pipeline_stages:
+      # Parse JSON logs từ Winston
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            http_status: http_status
+            path: path
+            method: method
+            duration_ms: duration_ms
+      # Extract fields thành labels
+      - labels:
+          level:
+          http_status:
+          method:
+      # Set timestamp
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.999Z07:00"
+      # Output chỉ message field
+      - output:
+          source: message
+
+  # --- Nginx Access Logs ---
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: reverse-proxy
+          log_type: access
+          __path__: /var/log/nginx/access.log
+
+    pipeline_stages:
+      # Parse JSON logs từ Nginx
+      - json:
+          expressions:
+            time: time
+            remote_addr: remote_addr
+            method: method
+            uri: uri
+            status: status
+            request_time: request_time
+            http_user_agent: http_user_agent
+      # Extract labels
+      - labels:
+          method:
+          status:
+      # Set timestamp
+      - timestamp:
+          source: time
+          format: "2006-01-02T15:04:05Z07:00"
+
+  # --- Nginx Error Logs ---
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: reverse-proxy
+          log_type: error
+          __path__: /var/log/nginx/error.log
+
+    pipeline_stages:
+      - regex:
+          expression: '(?P<time>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?P<level>\w+)\]'
+      - labels:
+          level:
